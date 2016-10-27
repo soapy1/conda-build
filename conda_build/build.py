@@ -238,22 +238,27 @@ def copy_license(m, config):
                         join(config.info_dir, 'LICENSE.txt'), config.timeout)
 
 
-def detect_and_record_prefix_files(m, files, prefix, config):
+def get_files_with_prefix(m, files, prefix):
     files_with_prefix = sorted(have_prefix_files(files, prefix))
-    binary_has_prefix_files = m.binary_has_prefix_files()
-    text_has_prefix_files = m.has_prefix_files()
 
     ignore_files = m.ignore_prefix_files()
     ignore_types = set()
     if not hasattr(ignore_files, "__iter__"):
-        if  ignore_files == True:
+        if ignore_files is True:
             ignore_types.update(('text', 'binary'))
         ignore_files = []
     if not m.get_value('build/detect_binary_files_with_prefix', True):
         ignore_types.update(('binary',))
-    ignore_files.extend([f[2] for f in files_with_prefix if f[1] in ignore_types and f[2] not in ignore_files])
+    ignore_files.extend(
+        [f[2] for f in files_with_prefix if f[1] in ignore_types and f[2] not in ignore_files])
     files_with_prefix = [f for f in files_with_prefix if f[2] not in ignore_files]
+    return files_with_prefix
 
+
+def detect_and_record_prefix_files(m, files, prefix, config):
+    files_with_prefix = get_files_with_prefix(m, files, prefix)
+    binary_has_prefix_files = m.binary_has_prefix_files()
+    text_has_prefix_files = m.has_prefix_files()
     is_noarch = m.get_value('build/noarch_python') or is_noarch_python(m) or m.get_value('build/noarch')
 
     if files_with_prefix and not is_noarch:
@@ -425,7 +430,8 @@ def create_info_files(m, files, config, prefix):
     elif m.get_value('build/noarch_python'):
         short_paths = []
 
-    create_info_files_psv(config.info_dir, prefix, short_paths)
+    files_with_prefix = get_files_with_prefix(m, files, prefix)
+    create_info_files_psv(config.info_dir, prefix, short_paths, files_with_prefix)
 
     detect_and_record_prefix_files(m, files, prefix, config)
     write_no_link(m, config, files)
@@ -448,24 +454,39 @@ def sha256_checksum(filename, buffersize=65536):
     return sha256.hexdigest()
 
 
-def create_info_files_psv(info_dir, prefix, short_paths):
-    field_names = ['short_path', 'sha256', 'size_in_bytes', 'file_type', 'prefix_placeholder',
-                   'file_mode', 'no_link', 'inode_first_path']
+def has_prefix(short_path, files_with_prefix):
+    for prefix, mode, filename in files_with_prefix:
+        if short_path == filename:
+            return prefix, mode
+    return None, None
+
+
+def build_info_files_psv_rows(prefix, short_paths, files_with_prefix):
+    files_psv = []
+    for short_path in short_paths:
+        prefix_placeholder, file_mode = has_prefix(short_path, files_with_prefix)
+        path = os.path.join(prefix, short_path)
+        files_psv.append({
+            "short_path": short_path,
+            "sha256": sha256_checksum(path),
+            "size_in_bytes": os.path.getsize(path),
+            "file_type": "",
+            "prefix_placeholder": prefix_placeholder,
+            "file_mode": file_mode,
+            "no_link": "",
+            "inode_first_path": "",
+        })
+    return files_psv
+
+
+def create_info_files_psv(info_dir, prefix, short_paths, files_with_prefix):
+    files_psv_info = build_info_files_psv_rows(prefix, short_paths, files_with_prefix)
+    field_names = files_psv_info[0].keys()
     with open(join(info_dir, 'files.psv'), "w") as files_psv:
         psv_writer = csv.writer(files_psv, delimeter="|", fieldnames=field_names)
         psv_writer.writeheader()
-        for short_path in short_paths:
-            path = os.path.join(prefix, short_path)
-            psv_writer.writerow({
-                "short_path": short_path,
-                "sha256": sha256_checksum(path),
-                "size_in_bytes": os.path.getsize(path),
-                "file_type": "",
-                "prefix_placeholder": "",
-                "file_mode": "",
-                "no_link": "",
-                "inode_first_path": "",
-            })
+        for row in files_psv_info:
+            psv_writer.writerow(row)
 
 
 def get_build_index(config, clear_cache=True):
