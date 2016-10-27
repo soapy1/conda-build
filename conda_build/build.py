@@ -18,6 +18,8 @@ import stat
 import subprocess
 import sys
 import tarfile
+import csv
+import hashlib
 
 # this is to compensate for a requests idna encoding error.  Conda is a better place to fix,
 #   eventually
@@ -411,20 +413,19 @@ def create_info_files(m, files, config, prefix):
         # make sure we use '/' path separators in metadata
         files = [_f.replace('\\', '/') for _f in files]
 
-    with open(join(config.info_dir, 'files'), **mode_dict) as fo:
-        if m.get_value('build/noarch_python'):
-            fo.write('\n')
-        elif is_noarch_python(m):
-            for f in files:
-                if f.find("site-packages") > 0:
-                    fo.write(f[f.find("site-packages"):] + '\n')
-                elif f.startswith("bin") and (f not in entry_point_script_names):
-                    fo.write(f.replace("bin", "python-scripts") + '\n')
-                elif f.startswith("Scripts") and (f not in entry_point_script_names):
-                    fo.write(f.replace("Scripts", "python-scripts") + '\n')
-        else:
-            for f in files:
-                fo.write(f + '\n')
+    short_paths = files
+    if is_noarch_python(m):
+        for index, short_path in enumerate(short_paths):
+            if short_path.find("site-packages") > 0:
+                files[index] = short_path[short_path.find("site-packages"):]
+            elif short_path.startswith("bin") and (short_path not in entry_point_script_names):
+                files[index] = short_path.replace("bin", "python-scripts")
+            elif short_path.startswith("Scripts") and (short_path not in entry_point_script_names):
+                files[index] = short_path.replace("Scripts", "python-scripts")
+    elif m.get_value('build/noarch_python'):
+        short_paths = []
+
+    create_info_files_psv(config.info_dir, prefix, short_paths)
 
     detect_and_record_prefix_files(m, files, prefix, config)
     write_no_link(m, config, files)
@@ -437,6 +438,34 @@ def create_info_files(m, files, config, prefix):
         copy_into(join(m.path, m.get_value('app/icon')),
                         join(config.info_dir, 'icon.png'),
                   config.timeout)
+
+
+def sha256_checksum(filename, buffersize=65536):
+    sha256 = hashlib.sha256()
+    with open(filename, 'rb') as f:
+        for block in iter(lambda: f.read(buffersize), b''):
+            sha256.update(block)
+    return sha256.hexdigest()
+
+
+def create_info_files_psv(info_dir, prefix, short_paths):
+    field_names = ['short_path', 'sha256', 'size_in_bytes', 'file_type', 'prefix_placeholder',
+                   'file_mode', 'no_link', 'inode_first_path']
+    with open(join(info_dir, 'files.psv'), "w") as files_psv:
+        psv_writer = csv.writer(files_psv, delimeter="|", fieldnames=field_names)
+        psv_writer.writeheader()
+        for short_path in short_paths:
+            path = os.path.join(prefix, short_path)
+            psv_writer.writerow({
+                "short_path": short_path,
+                "sha256": sha256_checksum(path),
+                "size_in_bytes": os.path.getsize(path),
+                "file_type": "",
+                "prefix_placeholder": "",
+                "file_mode": "",
+                "no_link": "",
+                "inode_first_path": "",
+            })
 
 
 def get_build_index(config, clear_cache=True):
