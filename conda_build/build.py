@@ -430,8 +430,12 @@ def create_info_files(m, files, config, prefix):
     elif m.get_value('build/noarch_python'):
         short_paths = []
 
+    no_link = m.get_value('build/no_link')
+    if no_link:
+        if not isinstance(no_link, list):
+            no_link = [no_link]
     files_with_prefix = get_files_with_prefix(m, files, prefix)
-    create_info_files_psv(config.info_dir, prefix, short_paths, files_with_prefix)
+    create_info_files_psv(config.info_dir, prefix, short_paths, files_with_prefix, no_link)
 
     detect_and_record_prefix_files(m, files, prefix, config)
     write_no_link(m, config, files)
@@ -461,7 +465,12 @@ def has_prefix(short_path, files_with_prefix):
     return None, None
 
 
-def build_info_files_psv_rows(prefix, short_paths, files_with_prefix):
+def is_no_link(no_link, short_path):
+    if no_link is not None and short_path in no_link:
+        return True
+
+
+def build_info_files_psv_rows(prefix, short_paths, files_with_prefix, no_link):
     files_psv = []
     for short_path in short_paths:
         prefix_placeholder, file_mode = has_prefix(short_path, files_with_prefix)
@@ -473,13 +482,13 @@ def build_info_files_psv_rows(prefix, short_paths, files_with_prefix):
             "file_type": "",
             "prefix_placeholder": prefix_placeholder,
             "file_mode": file_mode,
-            "no_link": "",
+            "no_link": is_no_link(no_link, short_path),
             "inode_first_path": "",
         })
     return files_psv
 
 
-def create_info_files_psv(info_dir, prefix, short_paths, files_with_prefix):
+def create_info_files_psv(info_dir, prefix, short_paths, files_with_prefix, no_link):
     files_psv_info = build_info_files_psv_rows(prefix, short_paths, files_with_prefix)
     field_names = files_psv_info[0].keys()
     with open(join(info_dir, 'files.psv'), "w") as files_psv:
