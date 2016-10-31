@@ -435,7 +435,7 @@ def create_info_files(m, files, config, prefix):
         if not isinstance(no_link, list):
             no_link = [no_link]
     files_with_prefix = get_files_with_prefix(m, files, prefix)
-    create_info_files_psv(config.info_dir, prefix, short_paths, files_with_prefix, no_link)
+    create_info_files_json(config.info_dir, prefix, short_paths, files_with_prefix, no_link)
 
     detect_and_record_prefix_files(m, files, prefix, config)
     write_no_link(m, config, files)
@@ -470,12 +470,12 @@ def is_no_link(no_link, short_path):
         return True
 
 
-def build_info_files_psv_rows(prefix, short_paths, files_with_prefix, no_link):
-    files_psv = []
+def build_info_files_json(prefix, short_paths, files_with_prefix, no_link):
+    files_json = []
     for short_path in short_paths:
         prefix_placeholder, file_mode = has_prefix(short_path, files_with_prefix)
         path = os.path.join(prefix, short_path)
-        files_psv.append({
+        files_json.append({
             "short_path": short_path,
             "sha256": sha256_checksum(path),
             "size_in_bytes": os.path.getsize(path),
@@ -485,17 +485,13 @@ def build_info_files_psv_rows(prefix, short_paths, files_with_prefix, no_link):
             "no_link": is_no_link(no_link, short_path),
             "inode_first_path": "",
         })
-    return files_psv
+    return files_json
 
 
-def create_info_files_psv(info_dir, prefix, short_paths, files_with_prefix, no_link):
-    files_psv_info = build_info_files_psv_rows(prefix, short_paths, files_with_prefix)
-    field_names = files_psv_info[0].keys()
-    with open(join(info_dir, 'files.psv'), "w") as files_psv:
-        psv_writer = csv.writer(files_psv, delimeter="|", fieldnames=field_names)
-        psv_writer.writeheader()
-        for row in files_psv_info:
-            psv_writer.writerow(row)
+def create_info_files_json(info_dir, prefix, short_paths, files_with_prefix, no_link):
+    files_json_info = build_info_files_json(prefix, short_paths, files_with_prefix, no_link)
+    with open(join(info_dir, 'files.json'), "w") as files_json:
+        json.dump(files_json_info, files_json)
 
 
 def get_build_index(config, clear_cache=True):
