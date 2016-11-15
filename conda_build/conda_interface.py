@@ -54,6 +54,7 @@ if parse_version(conda.__version__) >= parse_version("4.2"):
     LinkError = conda.exceptions.LinkError
     NoPackagesFoundError = conda.exceptions.NoPackagesFoundError
     CondaValueError = conda.exceptions.CondaValueError
+    from conda.common.compat import CrossPlatformStLink
 
 else:
     from conda.config import get_default_urls, non_x86_linux_machines, load_condarc  # NOQA
