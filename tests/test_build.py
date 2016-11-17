@@ -217,24 +217,17 @@ def test_create_info_files_json(testing_workdir, test_metadata):
     files = ["one", "two", "foo"]
 
     build.create_info_files_json_v1(test_metadata, info_dir, testing_workdir, files, files_with_prefix)
-    files_json_path = os.path.join(info_dir, "files.json")
-    expected_output = {
-        "files": [{"file_mode": "text", "node_type": "hardlink", "path": "foo",
-                     "prefix_placeholder": "prefix/path",
-                     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                     "size_in_bytes": 0},
-                    {"node_type": "hardlink", "path": "one",
-                     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                     "size_in_bytes": 0},
-                    {"node_type": "hardlink", "path": "two",
-                     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                     "size_in_bytes": 0}],
-        "fields": ["path", "sha256", "size_in_bytes", "node_type", "file_mode",
-                   "prefix_placeholder", "no_link", "inode_paths"],
-        "version": 1}
+    files_json_path = os.path.join(info_dir, "PATHS")
+    expected_output = [
+        ["path", "sha256", "size_in_bytes", "node_type", "file_mode", "prefix_placeholder", "no_link", "inode_paths"],
+        ["foo", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "0", "hardlink", "text", "prefix/path", "", ""],
+        ["one", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "0", "hardlink", "", "", "", ""],
+        ["two", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "0", "hardlink", "", "", "", ""],
+    ]
     with open(files_json_path, "r") as files_json:
-        output = json.load(files_json)
-        assert output == expected_output
+        data = files_json.read()
+    output = [row.split('|') for row in data.split('\n')]
+    assert output == expected_output
 
 
 @pytest.mark.skipif(on_win and sys.version[:3] == "2.7",
@@ -254,24 +247,15 @@ def test_create_info_files_json_no_inodes(testing_workdir, test_metadata):
     files = ["one", "two", "one_hl", "foo"]
 
     build.create_info_files_json_v1(test_metadata, info_dir, testing_workdir, files, files_with_prefix)
-    files_json_path = os.path.join(info_dir, "files.json")
-    expected_output = {
-        "files": [{"file_mode": "text", "node_type": "hardlink", "path": "foo",
-                   "prefix_placeholder": "prefix/path",
-                   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                   "size_in_bytes": 0},
-                  {"node_type": "hardlink", "path": "one",
-                   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                   "size_in_bytes": 0},
-                  {"node_type": "hardlink", "path": "one_hl",
-                   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                   "size_in_bytes": 0},
-                  {"node_type": "hardlink", "path": "two",
-                   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                   "size_in_bytes": 0}],
-        "fields": ["path", "sha256", "size_in_bytes", "node_type", "file_mode",
-                   "prefix_placeholder", "no_link", "inode_paths"],
-        "version": 1}
+    files_json_path = os.path.join(info_dir, "PATHS")
+    expected_output = [
+        ["path", "sha256", "size_in_bytes", "node_type", "file_mode", "prefix_placeholder", "no_link", "inode_paths"],
+        ["foo", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "0", "hardlink", "text", "prefix/path", "", ""],
+        ["one", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "0", "hardlink", "", "", "", ""],
+        ["one_hl", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "0", "hardlink", "", "", "", ""],
+        ["two", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "0", "hardlink", "", "", "", ""],
+    ]
     with open(files_json_path, "r") as files_json:
-        output = json.load(files_json)
-        assert output == expected_output
+        data = files_json.read()
+    output = [row.split('|') for row in data.split('\n')]
+    assert output == expected_output
