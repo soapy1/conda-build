@@ -27,7 +27,7 @@ import hashlib
 import encodings.idna  # NOQA
 
 # used to get version
-from .conda_interface import cc
+from .conda_interface import cc, text_type
 from .conda_interface import envs_dirs, root_dir
 from .conda_interface import plan
 from .conda_interface import get_index
@@ -529,14 +529,11 @@ def create_info_files_json_v1(m, info_dir, prefix, files, files_with_prefix):
     files_json_fields = ["path", "sha256", "size_in_bytes", "node_type", "file_mode",
                          "prefix_placeholder", "no_link", "inode_paths"]
     files_json_files = build_info_files_json(m, prefix, files, files_with_prefix)
-    files_json_info = {
-        "version": 1,
-        "fields": files_json_fields,
-        "files": files_json_files,
-    }
-    with open(join(info_dir, 'files.json'), "w") as files_json:
-        json.dump(files_json_info, files_json, sort_keys=True, indent=2, separators=(',', ': '),
-                  cls=EntityEncoder)
+    row = lambda path: '|'.join(text_type(path.get(field, '')) for field in files_json_fields)
+    rows = [row(file) for file in files_json_files]
+    rows.insert(0, '|'.join(files_json_fields))
+    with open(join(info_dir, 'PATHS'), "w") as fh:
+        fh.write('\n'.join(rows))
 
 
 def get_build_index(config, clear_cache=True):
